@@ -67,6 +67,14 @@ Enter your python virtualenv, and run:
     ansible-playbook le-nfsn.yml
 
 
+## Test, then run against the real ACME Boulder
+
+Boulder is how they call the ACME server. Comment out the
+`acme_directory` variable and uncomment the one with the real ACME
+directory. You may also want to delete/rename your `cert_file` because
+it is still "valid" and the letsencrypt module will not run.
+
+
 ## Cron job
 
 Yet to figure out exactly, but I assume it would require the following:
@@ -81,6 +89,16 @@ daily or weekly because the letsencrypt module won't do the ACME
 challenge (return status "OK") if there is more than 10 days left to the
 certificate's expiry date. A copy of the work files must stay within
 reach in the `work_dir` though.
+
+
+## Note on reliability
+
+Sometimes the challenge validation fails, but then I run the playbook
+again and it succeeds. I don't know exactly why. Perhaps some HTTP
+requests take too long and the server times out.
+
+If that happens you also have to manually clean up and delete the
+challenge file. Or not. There is not security issue.
 
 
 # Copying
