@@ -30,10 +30,11 @@
     args:
       creates: "{{ work_dir }}/{{ account_key_file }}"
 
-  - name: fix the permissions
+  - name: fix the permissions on the account key
     delegate_to: localhost
     file:
       path: "{{ work_dir }}/{{ account_key_file }}"
+      mode: 0600
 
   - name: output the public key
     delegate_to: localhost
@@ -47,6 +48,12 @@
     shell: openssl genrsa 4096 > {{ domain_key_file }}
     args:
       creates: "{{ domain_key_file }}"
+
+  - name: fix the permissions on the domain key
+    delegate_to: localhost
+    file:
+      path: "{{ work_dir }}/{{ account_key_file }}"
+      mode: 0600
 
   - name: create csr
     delegate_to: localhost
