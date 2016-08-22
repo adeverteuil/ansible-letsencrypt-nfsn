@@ -1,0 +1,134 @@
+---
+# Ansible playbook that obtains an SSL certificate from Let's Encrypt
+# and installs it on a NearlyFreeSpeech.net site.
+#
+# Suggested ansible.cfg settings to have in your current working directory:
+#     retry_files_enabled = False
+#     inventory = hosts
+#     control_path = %(directory)s/%%C
+#
+# Write your hosts file like the following:
+#     nfsn ansible_host=<your_nearlyfreespeech_ssh_hostname> \
+#          ansible_user=<your_nearlyfreespeech_user> \
+#          ansible_python_interpreter=/usr/local/bin/python
+#
+# References:
+#   http://docs.ansible.com/ansible/letsencrypt_module.html
+#   https://github.com/abl/letsencrypt-nfsn
+#   https://members.nearlyfreespeech.net/faq?q=TLSSetup#TLSSetup
+#
+# Copyright © 2016 Alexandre de Verteuil
+# Freely copyable, modifiable and shareable
+
+- hosts: nfsn
+  gather_facts: no  # The setup module doesn't work in NearlyFreeSpeech.net's environment.
+  tasks:
+
+  - name: create the account key
+    delegate_to: localhost
+    shell: openssl genrsa 4096 > {{ work_dir }}/{{ account_key_file }}
+    args:
+      creates: "{{ work_dir }}/{{ account_key_file }}"
+
+  - name: fix the permissions
+    delegate_to: localhost
+    file:
+      path: "{{ work_dir }}/{{ account_key_file }}"
+
+  - name: output the public key
+    delegate_to: localhost
+    shell: openssl rsa -in {{ work_dir }}/{{ account_key_file }} \
+           > {{ work_dir }}/{{ account_key_file }}.pub
+    args:
+      creates: "{{ work_dir }}/{{ account_key_file }}.pub"
+
+  - name: generate the domain key
+    delegate_to: localhost
+    shell: openssl genrsa 4096 > {{ domain_key_file }}
+    args:
+      creates: "{{ domain_key_file }}"
+
+  - name: create csr
+    delegate_to: localhost
+    shell: 'openssl req -new -sha256 -key {{ domain_key_file }} -subj "/CN={{ domain }}" \
+           > {{ work_dir }}/{{ csr_file }}'
+    args:
+      creates: "{{ work_dir }}/{{ csr_file }}"
+
+  - name: prepare the .well-known/acme-challenge directory
+    file:
+      path: /home/public/.well-known/acme-challenge
+      state: directory
+      mode: 0775
+
+  - name: get challenge
+    delegate_to: localhost
+    letsencrypt:
+      acme_directory: "{{ acme_directory }}"
+      account_email: "{{ account_email }}"
+      account_key: "{{ account_key_file }}"
+      agreement: "{{ agreement_url }}"
+      csr: "{{ work_dir }}/{{ csr_file }}"
+      dest: "{{ work_dir }}/{{ cert_file }}"
+    register: le_challenge
+
+  - name: fulfill the challenge
+    copy:
+      dest: /home/public/{{ le_challenge['challenge_data'][domain]['http-01']['resource'] }}
+      content: "{{ le_challenge['challenge_data'][domain]['http-01']['resource_value'] }}"
+    when: le_challenge|changed
+
+  - name: obtain the certificate
+    delegate_to: localhost
+    letsencrypt:
+      acme_directory: "{{ acme_directory }}"
+      account_email: "{{ account_email }}"
+      account_key: "{{ account_key_file }}"
+      agreement: "{{ agreement_url }}"
+      csr: "{{ work_dir }}/{{ csr_file }}"
+      dest: "{{ work_dir }}/{{ cert_file }}"
+      data: "{{ le_challenge }}"
+
+  - name: clean up the challenge token
+    file:
+      path: /home/public/{{ le_challenge['challenge_data'][domain]['http-01']['resource'] }}
+      state: absent
+    when: le_challenge|changed
+
+  - name: copy the certificate to the server
+    copy:
+      src: "{{ work_dir }}/{{ cert_file }}"
+      dest: /home/protected/{{ cert_file }}
+    register: copy_cert
+
+  - name: copy the private key to the server
+    copy:
+      src: "{{ work_dir }}/{{ domain_key_file }}"
+      dest: /home/protected/{{ domain_key_file }}
+      mode: 0640
+      group: web
+    register: copy_key
+
+  - name: download the intermediate SSL certificate
+    get_url:
+      url: https://letsencrypt.org/certs/lets-encrypt-x1-cross-signed.pem
+      dest: /home/protected/intermediary.pem
+    register: copy_chain
+
+  - name: install the certificate
+    shell: cd /home/protected; cat {{ domain_key_file }} intermediary.pem {{ cert_file }} \
+           | nfsn -i set-tls
+    register: nfsn
+    failed_when: '"ERROR" in nfsn.stdout'
+    when: le_challenge|changed or copy_cert|changed or copy_key|changed or copy_chain|changed
+
+  vars:
+    work_dir:
+    account_email:
+    account_key_file: account.key
+    domain_key_file: test.key
+    csr_file: test.csr
+    cert_file: test.crt
+    domain:
+    acme_directory: https://acme-staging.api.letsencrypt.org/directory
+    agreement_url: https://letsencrypt.org/documents/LE-SA-v1.1.1-August-1-2016.pdf
