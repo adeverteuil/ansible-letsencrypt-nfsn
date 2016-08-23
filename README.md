@@ -9,8 +9,7 @@ on a NearlyFreeSpeech.net site using Ansible's letsencrypt module
 
 ## Copy ansible.cfg to the working directory
 
-I included a copy of `ansible.cfg`. This is the file default file
-distributed with Ansible with a few modifications:
+I included a copy of `ansible.cfg` which overrides three defaults:
 
 * The inventory file is `hosts`, in the current working directory,
 * `retry_files_enabled` is `False`,
