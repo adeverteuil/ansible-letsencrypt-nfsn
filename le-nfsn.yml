@@ -36,13 +36,6 @@
       path: "{{ work_dir }}/{{ account_key_file }}"
       mode: 0600
 
-  - name: output the public key
-    delegate_to: localhost
-    shell: openssl rsa -in {{ work_dir }}/{{ account_key_file }} \
-           > {{ work_dir }}/{{ account_key_file }}.pub
-    args:
-      creates: "{{ work_dir }}/{{ account_key_file }}.pub"
-
   - name: generate the domain key
     delegate_to: localhost
     shell: openssl genrsa 4096 > {{ domain_key_file }}
