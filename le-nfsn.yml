@@ -50,10 +50,10 @@
 
   - name: create csr
     delegate_to: localhost
-    shell: 'openssl req -new -sha256 -key {{ domain_key_file }} -subj "/CN={{ domain }}" \
-           > {{ work_dir }}/{{ csr_file }}'
+    shell: 'openssl req -new -sha256 -key {{ domain_key_file }} -subj "/" -reqexts SAN -config <(cat {{ openssl_default_config }} <(printf "[SAN]\nsubjectAltName={% for name in domains %}DNS:{{ name }}{% if not loop.last %},{% endif %}{% endfor %}")) > {{ work_dir }}/{{ csr_file }}'
     args:
       creates: "{{ work_dir }}/{{ csr_file }}"
+      executable: /bin/bash
 
   - name: prepare the .well-known/acme-challenge directory
     file:
@@ -74,9 +74,17 @@
 
   - name: fulfill the challenge
     copy:
-      dest: /home/public/{{ le_challenge['challenge_data'][domain]['http-01']['resource'] }}
-      content: "{{ le_challenge['challenge_data'][domain]['http-01']['resource_value'] }}"
-    when: le_challenge|changed
+      dest: "/home/public/{{ item.value['http-01']['resource'] }}"
+      content: "{{ item.value['http-01']['resource_value'] }}"
+    with_dict: "{{ le_challenge['challenge_data']|default({}) }}"
+
+  - name: test the challenge validation locally
+    delegate_to: localhost
+    command: curl -skL http://{{ item.key }}/{{ item.value['http-01']['resource'] }}
+    register: value
+    failed_when: "value.stdout != item.value['http-01']['resource_value']"
+    changed_when: false
+    with_dict: "{{ le_challenge['challenge_data']|default({}) }}"
 
   - name: obtain the certificate
     delegate_to: localhost
@@ -91,9 +99,9 @@
 
   - name: clean up the challenge token
     file:
-      path: /home/public/{{ le_challenge['challenge_data'][domain]['http-01']['resource'] }}
+      path: /home/public/{{ item.value['http-01']['resource'] }}
       state: absent
-    when: le_challenge|changed
+    with_dict: "{{ le_challenge['challenge_data']|default({}) }}"
 
   - name: copy the certificate to the server
     copy:
@@ -126,10 +134,12 @@
     work_dir:
     account_email:
     account_key_file: account.key
-    domain_key_file: test.key
-    csr_file: test.csr
-    cert_file: test.crt
-    domain:
+    domain_key_file: domain.key
+    csr_file: domain.csr
+    cert_file: domain.crt
+    domains: []
+    openssl_default_config: /etc/pki/tls/openssl.cnf
+    #openssl_default_config: /etc/ssl/openssl.cnf
     agreement_url: https://letsencrypt.org/documents/LE-SA-v1.1.1-August-1-2016.pdf
     acme_directory: https://acme-staging.api.letsencrypt.org/directory
     #acme_directory: https://acme-v01.api.letsencrypt.org/directory

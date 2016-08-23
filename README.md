@@ -33,15 +33,33 @@ to be an absolute path otherwise the letsencrypt module will be trying
 to access a protected directory. I didn't check the code but I suppose
 it defaults to a path relative to `/etc`.
 
-`domain` cannot be an array. It would be a nice to have feature, but
-let's start with one domain as a string.
+`domains` is a list of domain names that will be included in the
+"Subject Alternative Name" field of the csr. The value must
+be in the format `DNS:example.com,DNS:www.example.com` up to a [limit of
+100 names](https://letsencrypt.org/docs/rate-limits/).  All names must
+resolve and be an alias of the main site because this playbook will copy
+all the challenge resources under the same document root.
 
-`acme_directory` is the staging environment, just like the default. The
-variable is a placeholder for you to update it with the production ACME
-url when you are ready.
+> As far as I tested, Let's Encrypt only produces SAN certificates. It
+> will automatically insert the "Subject" domain as the first "Subject
+> Alternative Name" in the certificate, even if the csr only contains
+> one "Subject" domain. It will also fill the Subject field with the
+> first domain found in the "Subject Alternative Name" field if it is
+> left empty. Therefore there need not be a different case for 1 domain
+> or for 2 or more domains.
+
+`acme_directory` defaults to the staging environment. The variable is a
+placeholder for you to update it with the production ACME url when you
+are ready.
 
 `agreement_url` has been updated since the release of the letsencrypt
-module so I put the current version for you here.
+module so I put the current version for you here. Let's Encrypt will not
+issue your certificate if this url is not the current one.
+
+`openssl_default_dir` is the path to your system's default
+openssl.cfg. On Fedora, it is located at `/etc/pki/tls/openssl.cnf` but
+on other systems it could be at `/etc/ssl/openssl.cnf`. Do a `locate
+openssl.cnf` to find out.
 
 
 ## Upload your SSH key to your NearlyFreeSpeech.net profile
@@ -56,7 +74,7 @@ You need to specify the variables `ansible_host`, `ansible_user` and
 `ansible_python_interpreter` for the nfsn environment. For example:
 
     # hosts
-    nfsn ansible_host=<your_nfsn_ssh_hostname ansible_user=<site_memberlogin> ansible_python_interpreter=/usr/local/bin/python
+    nfsn ansible_host=<your_nfsn_ssh_hostname> ansible_user=<site_memberlogin> ansible_python_interpreter=/usr/local/bin/python
 
 
 ## Run the playbook
@@ -68,10 +86,11 @@ Enter your python virtualenv, and run:
 
 ## Test, then run against the real ACME Boulder
 
-Boulder is how they call the ACME server. Comment out the
-`acme_directory` variable and uncomment the one with the real ACME
-directory. You may also want to delete/rename your `cert_file` because
-it is still "valid" and the letsencrypt module will not run.
+Comment out the `acme_directory` variable and uncomment the one with the
+real ACME directory. You may also want to delete/rename your `cert_file`
+because it is still "valid" and the letsencrypt module will not run.
+
+FYI Boulder is the name of the ACME server implementation.
 
 
 ## Cron job
@@ -97,7 +116,7 @@ again and it succeeds. I don't know exactly why. Perhaps some HTTP
 requests take too long and the server times out.
 
 If that happens you also have to manually clean up and delete the
-challenge file. Or not. There is not security issue.
+challenge file. Or not. There is no security issue here.
 
 
 # Copying
