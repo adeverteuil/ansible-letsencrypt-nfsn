@@ -16,6 +16,7 @@
 #   http://docs.ansible.com/ansible/letsencrypt_module.html
 #   https://github.com/abl/letsencrypt-nfsn
 #   https://members.nearlyfreespeech.net/faq?q=TLSSetup#TLSSetup
+#   https://letsencrypt.org/certificates/
 #
 # Copyright © 2016 Alexandre de Verteuil
 # Freely copyable, modifiable and shareable
@@ -135,12 +136,12 @@
 
   - name: download the intermediate SSL certificate
     get_url:
-      url: https://letsencrypt.org/certs/lets-encrypt-x1-cross-signed.pem
-      dest: /home/protected/intermediary.pem
+      url: https://letsencrypt.org/certs/lets-encrypt-x3-cross-signed.pem
+      dest: /home/protected/intermediate.crt
     register: copy_chain
 
   - name: install the certificate
-    shell: cd /home/protected; cat {{ domain_key_file }} intermediary.pem {{ cert_file }} \
+    shell: cd /home/protected; cat {{ domain_key_file }} intermediate.crt {{ cert_file }} \
            | nfsn -i set-tls
     register: nfsn
     failed_when: '"ERROR" in nfsn.stdout'
