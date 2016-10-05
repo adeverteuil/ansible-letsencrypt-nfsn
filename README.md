@@ -26,7 +26,9 @@ is available since Ansible 2.2.
 I created a Python virtualenv and [installed the latest release version with pip](http://docs.ansible.com/ansible/intro_installation.html#latest-releases-via-pip).
 
 
-## Fill in the `vars` part of the playbook.
+## Create the variables.yml file
+
+You can copy it from `variables.yml.example`.
 
 `work_dir` is where you want to create the files on the localhost. Needs
 to be an absolute path otherwise the letsencrypt module will be trying
