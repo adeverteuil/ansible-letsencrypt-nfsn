@@ -12,6 +12,8 @@
 #          ansible_user=<your_nearlyfreespeech_user> \
 #          ansible_python_interpreter=/usr/local/bin/python
 #
+# Copy and edit your variables.yml file from variables.yml.example
+#
 # References:
 #   http://docs.ansible.com/ansible/letsencrypt_module.html
 #   https://github.com/abl/letsencrypt-nfsn
@@ -24,20 +26,8 @@
 - hosts: nfsn
   gather_facts: no  # The setup module doesn't work in NearlyFreeSpeech.net's environment.
 
-  vars:
-
-    work_dir:
-    account_email:
-    account_key_file: account.key
-    domain_key_file: domain.key
-    csr_file: domain.csr
-    cert_file: domain.crt
-    domains: []
-    openssl_default_config: /etc/pki/tls/openssl.cnf
-    #openssl_default_config: /etc/ssl/openssl.cnf
-    agreement_url: https://letsencrypt.org/documents/LE-SA-v1.1.1-August-1-2016.pdf
-    acme_directory: https://acme-staging.api.letsencrypt.org/directory
-    #acme_directory: https://acme-v01.api.letsencrypt.org/directory
+  vars_files:
+  - variables.yml
 
   tasks:
 
